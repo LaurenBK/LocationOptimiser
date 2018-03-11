@@ -1,0 +1,19 @@
+<nav class="navbar navbar-inverse navbar-dark bg-dark">
+  <div class="container-fluid">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="{% url 'map_app:centralLocation'  %}"><h3>Site Locator</h3></a>
+    </div>
+      <ul class="nav navbar-nav navbar-right">
+        {% if user.is_authenticated %}
+          <p style="color:white;">Welcome {{user.username}}</p>
+        {% else %}
+          <li>
+            <a href="{% url 'map_app:registeruser'  %}" style="color:white">
+              <span class="glyphicon glyphicon-user" style="color:white" ></span> Sign Up</a></li>
+          <li>
+            <a href="{% url 'map_app:loginuser'  %}" style="color:white">
+              <span class="glyphicon glyphicon-log-in" style="color:white"></span> Login</a></li>
+        {% endif %}
+    </ul>
+  </div>
+</nav>

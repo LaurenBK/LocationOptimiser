@@ -1,0 +1,123 @@
+{% extends 'map_app/base.html' %}
+{% block main_content %}
+
+<script>
+    var address = "{{central.address}}";
+    var potentialAddresses = "{{potentialAddresses}}";
+    var collectionAddresses = "{{collectionAddresses}}";
+    var mykey = config.MY_KEY;
+    var secretkey = config.SECRET_KEY;
+</script>
+
+<div class="container">
+  <div class="jumbotron" style="height:100%;">
+
+<table  class="table table-striped">
+    <tr>
+        <td>
+            <img src="http://maps.google.com/mapfiles/ms/icons/grn-pushpin.png">
+        </td>
+        <td>Potential sites</td>
+        <td>
+            <img src="http://maps.google.com/mapfiles/ms/icons/red-pushpin.png">
+        </td>
+        <td>Collection points</td>
+    </tr>
+</table>
+
+<div id="map" style="clear:both; height:400px;"></div>
+<script src="../../static/map_app/loadmap.js">
+</script>
+<script async defer
+src="https://maps.googleapis.com/maps/api/js?key={{mykey}}&callback=centralMap">
+</script>
+<br>
+
+{%if sites %}
+    <table  class="table table-striped">
+        <thead>
+            <th>Potential Site</th>
+            <th>Combined Route Cost per Month(R)</th>
+        </thead>
+    {% for site,cost in sites %}
+      <tr>
+          <td>{{site}}</td>
+          <td>{{cost}}</td>
+      </tr>
+    {% endfor %}
+    </table>
+{% endif %}
+  </div>
+</div>
+
+<div class=container-fluid">
+   <div class="col-sm-12 text-center">
+    <form  action="{% url 'map_app:centralLocation'  %}" method=post">  {% csrf_token %}
+        <input id="index_next" class="btn btn-info btn-lg" type="submit" value="Back to home" >
+    </form>
+   </div>
+</div>
+
+<div class="container">
+<h4>Download files?</h4>
+<ul>
+    <a href ="map_app:summary"}>Summary of monthly transport costs per site </a><br>
+    <a href ="map_app:detail"}>Detailed view of distances, duration and cost for each site and collection point</a><br>
+    <a href ="map_app:orderOfDistance"}>Collection points and sites in distance order</a>
+</ul>
+<br>
+</div>
+
+<div class="container">
+<h4>Choose potential branch to view in detail</h4>
+<form method="POST"> {% csrf_token %}
+<select name="filter_sites">
+    {% for entry in central %}
+        <option value="{{ entry.address }}">{{ entry.address }}</option>
+    {% endfor %}
+    <input type="submit" value="Select">
+</select>
+</form>
+<br>
+<h4>Selected Route: {{selected_routes.0.site}} </h4>
+<br>
+{%if selected_routes %}
+        <table  class="table table-striped" >
+            <thead>
+                <th>Potential Site</th>
+                <th>Collection Site</th>
+                <th>Duration (min)</th>
+                <th>Distance (km)</th>
+                <th>Deliveries per month</th>
+                <th>Transport type</th>
+                <th>Route Cost(R)</th>
+                <th>Route Cost Per Month(R)</th>
+            </thead>
+        {% for route in selected_routes %}
+            <tr>
+                {% if forloop.counter0|divisibleby:num_routes %}
+                    <td rowspan="{{num_routes}}">{{route.site}}</td>
+                    <td>{{route.address}}</td>
+                    <td>{{route.duration_minutes}}</td>
+                    <td>{{route.distance_km}}</td>
+                    <td>{{route.deliveriesPerMonth}}</td>
+                    <td>{{route.type}}</td>
+                    <td>{{route.routeCost}}</td>
+                    <td>{{route.routeCostPerMonth}}</td>
+                {% else %}
+                    <td>{{route.address}}</td>
+                    <td>{{route.duration_minutes}}</td>
+                    <td>{{route.distance_km}}</td>
+                    <td>{{route.deliveriesPerMonth}}</td>
+                    <td>{{route.type}}</td>
+                    <td>{{route.routeCost}}</td>
+                    <td>{{route.routeCostPerMonth}}</td>
+                {% endif %}
+            </tr>
+        {% endfor %}
+        </table>
+    {% endif %}
+
+</div>
+
+{% endblock %}

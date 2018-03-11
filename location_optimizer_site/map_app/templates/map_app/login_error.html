@@ -1,0 +1,12 @@
+{% extends 'map_app/base.html' %}
+{% block main_content %}
+
+<div class="container">
+  <div class="jumbotron" style="height:100%;">
+      <p>There was an error logging in. Please try again.</p>
+      <form  action="{% url 'map_app:centralLocation'  %}" method=post">  {% csrf_token %}
+        <input id="index_next" class="btn btn-info btn-lg" type="submit" value="Back to home" >
+    </form>
+  </div>
+</div>
+{% endblock %}
