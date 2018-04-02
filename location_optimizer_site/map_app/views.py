@@ -108,9 +108,8 @@ def centralLocation(request):
         # potentialUploadSucessful = True
 
         for i in range(len(potentialSites)):
-
+            row = potentialSites.iloc[i, :]
             try:
-                row = potentialSites.iloc[i, :]
                 address = row['Address'] + ' South Africa'
                 print(address)
                 gmaps = googlemaps.Client(key=mykey[1])

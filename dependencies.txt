@@ -3,3 +3,5 @@ googlemaps
 django-toolbelt
 bokeh
 numpy
+pandas
+django_excel
