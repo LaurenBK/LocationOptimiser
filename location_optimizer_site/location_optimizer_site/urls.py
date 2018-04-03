@@ -16,6 +16,8 @@ Including another URLconf
 from django.conf.urls import include, url
 from django.contrib import admin
 
+app_name = 'map_app'
+
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^map_app/',include('map_app.urls', namespace = 'map_app')),
