@@ -108,6 +108,7 @@ def centralLocation(request):
         # potentialUploadSucessful = True
 
         for i in range(len(potentialSites)):
+            print(potentialSites)
             row = potentialSites.iloc[i, :]
             try:
                 address = row['Address'] + ' South Africa'
