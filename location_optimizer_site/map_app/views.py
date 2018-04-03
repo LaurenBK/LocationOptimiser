@@ -84,7 +84,7 @@ def centralLocation(request):
     if request.method == 'POST'and request.FILES:
         try:
             potentialSites = request.FILES['potentialSitesFile']
-            potentialSites = pd.read_excel(potentialSites, encoding='utf8')
+            potentialSites_df = pd.read_excel(potentialSites, encoding='utf8')
         except:
             try:
                 collectionSites = request.FILES['collectionFile']
@@ -93,23 +93,23 @@ def centralLocation(request):
                                                 encoding='utf8')
                 collectionSites1 = pd.read_excel(collectionSites, 'Sheet1')
                 collectionSites2 = pd.read_excel(collectionSites, 'Sheet2')
-                collectionSites = pd.concat([collectionSites1, collectionSites2])
+                collectionSites_df = pd.concat([collectionSites1, collectionSites2])
             except:
                 try:
                     transportClass = request.FILES['transportClassFile']
-                    transportClass = pd.read_excel(transportClass, encoding='utf8')
+                    transportClass_df = pd.read_excel(transportClass, encoding='utf8')
                 except:
                     pass
 
     broken_addresses = []
     broken_routes = []
 
-    if potentialSites is not None:
+    if potentialSites_df is not None:
         # potentialUploadSucessful = True
 
-        for i in range(len(potentialSites)):
-            print(potentialSites)
-            row = potentialSites.iloc[i, :]
+        for i in range(len(potentialSites_df)):
+            print('potsite',potentialSites_df)
+            row = potentialSites_df.iloc[i, :]
             try:
                 address = row['Address'] + ' South Africa'
                 print(address)
@@ -132,13 +132,13 @@ def centralLocation(request):
                 print('Address broken. Error:', e)
                 broken_addresses.append(row['Address'])
 
-    if collectionSites is not None:
+    if collectionSites_df is not None:
         # collectionUploadSucessful = True
 
         central = CentralSite.objects.order_by('pub_date')
 
-        for i in range(len(collectionSites)):
-            row = collectionSites.iloc[i, :]
+        for i in range(len(collectionSites_df)):
+            row = collectionSites_df.iloc[i, :]
             print(row['Address'])
             try:
                 address = row['Address'] + ' South Africa'
@@ -167,10 +167,10 @@ def centralLocation(request):
                 print(e)
                 broken_routes.append(row['Address'])
 
-    if transportClass is not None:
+    if transportClass_df is not None:
         # transportUploadSucessful = True
-        for i in range(len(transportClass)):
-            row = transportClass.iloc[i,:]
+        for i in range(len(transportClass_df)):
+            row = transportClass_df.iloc[i, :]
             try:
                 query = TransportClasses.objects.create(transport=row['Collection vehicle'],
                                                         costPerKm=row['Cost per km'])
