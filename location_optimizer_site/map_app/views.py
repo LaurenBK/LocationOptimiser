@@ -87,97 +87,120 @@ def xlsx_reader(excel):
         df = pd.read_excel(excel, encoding='utf8')
     return df
 
+def potential_site_processing(df):
+
+    broken_addresses = []
+
+    for i in range(len(df)):
+        row = df.iloc[i, :]
+        try:
+            address = row['Address'] + ' South Africa'
+            print(address)
+            gmaps = googlemaps.Client(key=mykey[1])
+            geocode_result = gmaps.geocode(address)
+            try:
+                latlng = geocode_result[0]['geometry']['location']
+            except:
+                latlng = geocode_result['geometry']['location']
+
+            if not CentralSite.objects.filter(address=row['Address']).exists():
+                query = CentralSite.objects.create(address=row['Address'],
+                                                   pub_date=timezone.now(),
+                                                   lat=latlng['lat'],
+                                                   lng=latlng['lng'],
+                                                   costPerMonth=0)
+                query.save()
+            addresses = [latlng['lat'], latlng['lng']]
+        except Exception as e:
+            print('Address broken. Error:', e, 'row', row)
+            broken_addresses.append(row['Address'])
+
+    return {'addresses': addresses, 'broken_addresses': broken_addresses}
+
+def collections_site_processing(df):
+
+    broken_routes = []
+
+    central = CentralSite.objects.order_by('pub_date')
+
+    for i in range(len(df)):
+        row = df.iloc[i, :]
+        print(row['Address'])
+        try:
+            address = row['Address'] + ' South Africa'
+            gmaps = googlemaps.Client(key=mykey[1])
+            geocode_result = gmaps.geocode(address)
+            try:
+                latlng = geocode_result[0]['geometry']['location']
+            except:
+                latlng = geocode_result['geometry']['location']
+
+            for c in central:
+                distanceDuration = gmaps.distance_matrix(
+                    origins=c.address + ', South Africa',
+                    destinations=row[0] + ', South Africa',
+                    mode='driving')
+
+                if not Route.objects.filter(site=c,
+                                            address=row['Address']).exists():
+                    query = Route.objects.create(site=c,
+                                                 address=row['Address'],
+                                                 type=row['Collection vehicle'],
+                                                 distance_km=round(
+                                                     distanceDuration['rows'][
+                                                         0]['elements'][0][
+                                                         'distance'][
+                                                         'value'] / 1000.0, 2),
+                                                 duration_minutes=round(
+                                                     distanceDuration['rows'][
+                                                         0]['elements'][0][
+                                                         'duration'][
+                                                         'value'] / 60.0, 2),
+                                                 deliveriesPerMonth=row[
+                                                     'Collections per month'],
+                                                 lat=latlng['lat'],
+                                                 lng=latlng['lng'])
+                    query.save()
+        except Exception as e:
+            print(e)
+            broken_routes.append(row['Address'])
+
+    return {'broken_routes', broken_routes}
+
+def transport_types_processing(df):
+    for i in range(len(df)):
+        row = df.iloc[i, :]
+        try:
+            query = TransportClasses.objects.create(
+                transport=row['Collection vehicle'],
+                costPerKm=row['Cost per km'])
+            query.save()
+        except Exception as e:
+            print(e)
 
 @ensure_csrf_cookie
 def centralLocation(request):
 
+    file_types = {'potentialSitesFile': potential_site_processing,
+                  'collectionFile': collections_site_processing,
+                  'transportClassFile': transport_types_processing}
+    file_present = None
+
     if request.method == 'POST'and request.FILES:
         df = {}
-        for k in ['potentialSitesFile', 'collectionFile', 'transportClassFile']:
+        for k in file_types.keys:
             try:
                 excel = request.FILES[k]
                 df[k] = xlsx_reader(excel)
             except Exception as e:
                 print(e)
                 pass
+            file_present = k
     else:
         df = None
 
-    broken_addresses = []
-    broken_routes = []
-
-    if df is not None:
-        # potentialUploadSucessful = True
-
-        for i in range(len(df)):
-            row = df.iloc[i, :]
-            try:
-                address = row['Address'] + ' South Africa'
-                print(address)
-                gmaps = googlemaps.Client(key=mykey[1])
-                geocode_result = gmaps.geocode(address)
-                try:
-                    latlng = geocode_result[0]['geometry']['location']
-                except:
-                    latlng = geocode_result['geometry']['location']
-
-                if not CentralSite.objects.filter(address=row['Address']).exists():
-                    query = CentralSite.objects.create(address=row['Address'],
-                                                       pub_date=timezone.now(),
-                                                       lat=latlng['lat'],
-                                                       lng=latlng['lng'],
-                                                       costPerMonth = 0)
-                    query.save()
-                addresses = [latlng['lat'], latlng['lng']]
-            except Exception as e:
-                print('Address broken. Error:', e, 'row', row)
-                broken_addresses.append(row['Address'])
-
-    if df is not None:
-        # collectionUploadSucessful = True
-
-        central = CentralSite.objects.order_by('pub_date')
-
-        for i in range(len(df)):
-            row = df.iloc[i, :]
-            print(row['Address'])
-            try:
-                address = row['Address'] + ' South Africa'
-                gmaps = googlemaps.Client(key=mykey[1])
-                geocode_result = gmaps.geocode(address)
-                try:
-                    latlng = geocode_result[0]['geometry']['location']
-                except:
-                    latlng = geocode_result['geometry']['location']
-
-                for c in central:
-                    distanceDuration =gmaps.distance_matrix(origins = c.address+', South Africa', destinations = row[0]+', South Africa',
-                                                        mode = 'driving')
-
-                    if not Route.objects.filter(site= c, address=row['Address']).exists():
-                        query = Route.objects.create(site= c,
-                                                     address=row['Address'],
-                                                     type=row['Collection vehicle'],
-                                                     distance_km=round(distanceDuration['rows'][0]['elements'][0]['distance']['value']/1000.0,2),
-                                                     duration_minutes = round(distanceDuration['rows'][0]['elements'][0]['duration']['value']/60.0,2),
-                                                     deliveriesPerMonth=row['Collections per month'],
-                                                     lat=latlng['lat'],
-                                                     lng=latlng['lng'])
-                        query.save()
-            except Exception as e:
-                print(e)
-                broken_routes.append(row['Address'])
-
-    if df is not None:
-        # transportUploadSucessful = True
-        for i in range(len(df)):
-            row = df.iloc[i, :]
-            try:
-                query = TransportClasses.objects.create(transport=row['Collection vehicle'],
-                                                        costPerKm=row['Cost per km'])
-                query.save()
-            except Exception as e:
-                print(e)
+    if file_present is not None:
+        feedback = file_types[file_present]
 
     context = {}
     try:
@@ -202,12 +225,12 @@ def centralLocation(request):
     except:
         pass
 
-    if len(broken_addresses) > 0:
-        context['broken_addresses'] = broken_addresses
-        print('Broken addresses', len(broken_addresses))
-    if len(broken_routes) > 0:
-        context['broken_routes'] = broken_routes
-        print('Broken routes', len(broken_routes))
+    if 'broken_addresses' in feedback.keys():
+        context['broken_addresses'] = feedback['broken_addresses']
+        print('Broken addresses', len(feedback['broken_addresses']))
+    if 'broken_routes' in feedback.keys():
+        context['broken_routes'] = feedback['broken_routes']
+        print('Broken routes', len(feedback['broken_routes']))
 
     print(context)
     return render(request, 'map_app/home.html', context,  RequestContext(request))
