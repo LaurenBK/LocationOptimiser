@@ -165,7 +165,7 @@ def collections_site_processing(df):
             print(e)
             broken_routes.append(row['Address'])
 
-    return {'broken_routes', broken_routes}
+    return {'broken_routes': broken_routes}
 
 def transport_types_processing(df):
     for i in range(len(df)):
@@ -188,19 +188,20 @@ def centralLocation(request):
 
     if request.method == 'POST'and request.FILES:
         df = {}
-        for k in file_types.keys:
+        for k in file_types.keys():
             try:
                 excel = request.FILES[k]
                 df[k] = xlsx_reader(excel)
+                file_present = k
             except Exception as e:
                 print(e)
                 pass
-            file_present = k
     else:
         df = None
 
+    feedback = None
     if file_present is not None:
-        feedback = file_types[file_present]
+        feedback = file_types[file_present](df[file_present])
 
     context = {}
     try:
@@ -225,12 +226,13 @@ def centralLocation(request):
     except:
         pass
 
-    if 'broken_addresses' in feedback.keys():
-        context['broken_addresses'] = feedback['broken_addresses']
-        print('Broken addresses', len(feedback['broken_addresses']))
-    if 'broken_routes' in feedback.keys():
-        context['broken_routes'] = feedback['broken_routes']
-        print('Broken routes', len(feedback['broken_routes']))
+    if feedback is not None:
+        if 'broken_addresses' in feedback.keys():
+            context['broken_addresses'] = feedback['broken_addresses']
+            print('Broken addresses', len(feedback['broken_addresses']))
+        if 'broken_routes' in feedback.keys():
+            context['broken_routes'] = feedback['broken_routes']
+            print('Broken routes', len(feedback['broken_routes']))
 
     print(context)
     return render(request, 'map_app/home.html', context,  RequestContext(request))
