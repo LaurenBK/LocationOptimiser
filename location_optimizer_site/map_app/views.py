@@ -89,10 +89,6 @@ def xlsx_reader(file):
 @ensure_csrf_cookie
 def centralLocation(request):
 
-    potentialSites = None; #potentialUploadSucessful = False
-    collectionSites = None; #collectionUploadSucessful = False
-    transportClass = None; #transportUploadSucessful = False
-
     if request.method == 'POST'and request.FILES:
 
         for k in ['potentialSitesFile', 'collectionFile', 'transportClassFile']:
@@ -100,6 +96,8 @@ def centralLocation(request):
                 df = xlsx_reader(request.FILES[k])
             except:
                 pass
+    else:
+     df = None
 
     broken_addresses = []
     broken_routes = []
