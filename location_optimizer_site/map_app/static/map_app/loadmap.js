@@ -1,6 +1,6 @@
 var geocoder;
 var map;
-
+var config = require('../config.js');
 var mykey = config.MY_KEY;
 var secretkey = config.SECRET_KEY;
 var map;
