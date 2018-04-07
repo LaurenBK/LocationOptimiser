@@ -74,15 +74,17 @@ def register(request):
     return render(request, 'map_app/register.html', {'form' : form})
 
 
-def xlsx_reader(file):
+def xlsx_reader(excel):
     """
     Helper function to get from xlsx to pandas df
     :param file: input file
     :return:
     """
-    print(file)
-    df = pd.read_excel(file, encoding='utf8')
-    print(df.head())
+    try:
+        df = pd.read_excel(excel, 'Sheet1', encoding='utf8')
+    except Exception as e:
+        print(e)
+        df = pd.read_excel(excel, encoding='utf8')
     return df
 
 
@@ -90,14 +92,16 @@ def xlsx_reader(file):
 def centralLocation(request):
 
     if request.method == 'POST'and request.FILES:
-
+        df = {}
         for k in ['potentialSitesFile', 'collectionFile', 'transportClassFile']:
             try:
-                df = xlsx_reader(request.FILES[k])
-            except:
+                excel = request.FILES[k]
+                df[k] = xlsx_reader(excel)
+            except Exception as e:
+                print(e)
                 pass
     else:
-     df = None
+        df = None
 
     broken_addresses = []
     broken_routes = []
@@ -106,7 +110,6 @@ def centralLocation(request):
         # potentialUploadSucessful = True
 
         for i in range(len(df)):
-            print('potsite',df)
             row = df.iloc[i, :]
             try:
                 address = row['Address'] + ' South Africa'
@@ -127,7 +130,7 @@ def centralLocation(request):
                     query.save()
                 addresses = [latlng['lat'], latlng['lng']]
             except Exception as e:
-                print('Address broken. Error:', e)
+                print('Address broken. Error:', e, 'row', row)
                 broken_addresses.append(row['Address'])
 
     if df is not None:
