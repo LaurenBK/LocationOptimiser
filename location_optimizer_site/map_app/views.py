@@ -165,7 +165,7 @@ def collections_site_processing(df):
             print(e)
             broken_routes.append(row['Address'])
 
-    return {'broken_routes', broken_routes}
+    return {'broken_routes': broken_routes}
 
 def transport_types_processing(df):
     for i in range(len(df)):
