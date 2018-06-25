@@ -21,7 +21,7 @@ from django.http import HttpResponseRedirect
 from .forms import UserRegistrationForm
 import django_excel as excel
 
-mykey = open("map_app/static/config.js", "r").readlines()[1]
+mykey = open("map_app/static/map_app/config.js", "r").readlines()[1]
 mykey = mykey.split('\'')
 
 
@@ -115,7 +115,7 @@ def potential_site_processing(df):
             print('Address broken. Error:', e, 'row', row)
             broken_addresses.append(row['Address'])
 
-    return {'addresses': addresses, 'broken_addresses': broken_addresses}
+    return {'broken_addresses': broken_addresses}
 
 def collections_site_processing(df):
 
@@ -188,19 +188,20 @@ def centralLocation(request):
 
     if request.method == 'POST'and request.FILES:
         df = {}
-        for k in file_types.keys:
+        for k in file_types.keys():
             try:
                 excel = request.FILES[k]
                 df[k] = xlsx_reader(excel)
+                file_present = k
             except Exception as e:
                 print(e)
                 pass
-            file_present = k
     else:
         df = None
 
+    feedback = None
     if file_present is not None:
-        feedback = file_types[file_present]
+        feedback = file_types[file_present](df[file_present])
 
     context = {}
     try:
@@ -225,12 +226,13 @@ def centralLocation(request):
     except:
         pass
 
-    if 'broken_addresses' in feedback.keys():
-        context['broken_addresses'] = feedback['broken_addresses']
-        print('Broken addresses', len(feedback['broken_addresses']))
-    if 'broken_routes' in feedback.keys():
-        context['broken_routes'] = feedback['broken_routes']
-        print('Broken routes', len(feedback['broken_routes']))
+    if feedback is not None:
+        if 'broken_addresses' in feedback.keys():
+            context['broken_addresses'] = feedback['broken_addresses']
+            print('Broken addresses', len(feedback['broken_addresses']))
+        if 'broken_routes' in feedback.keys():
+            context['broken_routes'] = feedback['broken_routes']
+            print('Broken routes', len(feedback['broken_routes']))
 
     print(context)
     return render(request, 'map_app/home.html', context,  RequestContext(request))
