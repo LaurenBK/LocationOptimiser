@@ -2,7 +2,25 @@
 
 {% block main_content %}
 
-<script>
+<div class="container">
+  <div class="jumbotron" style="height:100%;">
+
+{% if user.is_authenticated %}
+  <p>Welcome, {{ user.username }}. Thanks for logging in. <br><br>
+      Current data contents:
+  </p>
+      <table>
+          <thead>
+            <th>Data source</th>
+            <th>Data count</th>
+          </thead>
+          <tr><td>Sites</td><td>{{central_length}}</td></tr>
+          <tr><td>Collection points</td><td>{{collections_length}}</td></tr>
+          <tr><td>Transport types</td><td>{{transport_length}}</td></tr>
+
+      </table>
+
+      <script>
     var mykey = config.MY_KEY;
     var secretkey = config.SECRET_KEY;
 
@@ -15,37 +33,27 @@
 
 </script>
 
-<div class="container">
-  <div class="jumbotron" style="height:100%;">
 
-{% if user.is_authenticated %}
-  <p>Welcome, {{ user.username }}. Thanks for logging in.</p>
-{% else %}
-  <p>Welcome, new user. Please log in.</p>
-{% endif %}
-
-
-<div class=container-fluid">
+      <div class=container-fluid">
    <div class="col-sm-12 text-right">
-        <input id="data_delete"
-               class="btn btn-info btn-lg" type="button"
-               value="Delete existing data"  >
+        <a href="delete_user_data">Delete existing data</a>
    </div>
 </div>
 
 
-<h2> Enter details for the potential site</h2>
+<hr><h2> Enter details for the potential site</h2><hr>
 
-<p>Import excel file with the headings: <b>Address, Rent</b></p>
+<p>Import excel file with the headings: <br>
+    <b>Address, Rent</b></p>
 
 <form method="post" id="csv1" enctype="multipart/form-data">{% csrf_token %}
 
     <input type="file" name="potentialSitesFile" />
-    <input type="submit" value="Upload"/>
+    <button class="btn btn-sample">Upload</button>
 
 </form>
 <br>
-{%  if central %}
+{%  if central_length > 0 and upload_occurred %}
       {% if broken_addresses %}
         <p>Upload successful! {{central_length}} addresses were uploaded. The
         following addresses could not be processed:</p>
@@ -59,24 +67,28 @@
           </tr>
             {% endfor %}
         </table>
+      <a href ="map_app:broken_addresses"}>
+          Download broken addresses </a><br>
       {% else %}
         <p>Upload successful! {{central_length}} addresses were uploaded.</p>
      {% endif %}
 {% endif %}
 <br>
 
-<h2> Enter details for the collection locations</h2>
-<p>Import excel file with the headings: <b>Location,Transport Type,Deliveries per Month</b> (This may take a few seconds to process)</p>
+<hr><h2> Enter details for the collection locations</h2><hr>
+<p>Import excel file with the headings: <br>
+    <b>Location,Transport Type,Deliveries per Month</b><br>
+    (This may take a few seconds to process)</p>
 
 <form  method="post" id="csv2" enctype="multipart/form-data">{% csrf_token %}
     <!--#from https://gist.github.com/imkevinxu/3365661-->
 
     <input type="file" name="collectionFile" />
-    <input type="submit" value="Upload" />
+    <button class="btn btn-sample">Upload</button>
 
 </form>
 <br>
-{% if collections %}
+{% if collections_length > 0 and upload_occurred %}
       {% if broken_routes %}
         <p>Upload successful! {{collections_length}} addresses were uploaded.
             The following addresses could not be processed:</p>
@@ -90,6 +102,7 @@
           </tr>
         {% endfor %}
         </table>
+      <a href ="map_app:broken_addresses"}>Download broken sites</a><br>
       {% else %}
         <p>Upload successful! {{collections_length}} collection
             addresses were uploaded.</p>
@@ -97,17 +110,16 @@
 {% endif %}
 <br>
 
-<h2> Enter details for the transport classes</h2>
-<p>Import excel file with the headings: <b>Transport class, Cost per km</b></p>
+<hr><h2> Enter details for the transport classes</h2><hr>
+<p>Import excel file with the headings: <br>
+    <b>Transport class, Cost per km</b></p>
 
 <form method="post" id="csv3" enctype="multipart/form-data">{% csrf_token %}
-
     <input type="file" name="transportClassFile" />
-    <input type="submit" value="Upload"/>
-
+    <button class="btn btn-sample">Upload</button>
 </form>
 <br>
-{%  if transport %}
+{%  if transport_length > 0 and upload_occurred %}
     <p>Upload successful! {{transport_length}} transport types were uploaded.</p>
 {% endif %}
 
@@ -117,9 +129,16 @@
 <div class=container-fluid">
    <div class="col-sm-12 text-center">
     <form  action="{% url 'map_app:otherLocations'  %}" method=post">  {% csrf_token %}
-        <input id="index_next" class="btn btn-info btn-lg" type="submit" value="Next" >
+        <input id="index_next" class="btn btn-sample btn-lg" type="submit" value="Next" >
     </form>
    </div>
 </div>
+
+
+{% else %}
+<p>Welcome, new user. Please log in.</p>
+{% endif %}
+
+
 
 {% endblock %}

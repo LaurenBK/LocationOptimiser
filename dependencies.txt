@@ -1,4 +1,4 @@
-django
+Django==2.1.4
 googlemaps
 django-toolbelt
 bokeh

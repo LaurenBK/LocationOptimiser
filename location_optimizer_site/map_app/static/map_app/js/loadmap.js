@@ -1,10 +1,10 @@
 var geocoder;
 var map;
-var config = require('../config.js');
+
 var mykey = config.MY_KEY;
 var secretkey = config.SECRET_KEY;
 var map;
-var iconBase = 'http://maps.google.com/mapfiles/ms/icons';
+var iconBase = "/static/map_app/images/";
 var markerBounds;
 
 //function getCookie(name) {
@@ -77,8 +77,8 @@ function centralMap(){
 
     markerBounds = new google.maps.LatLngBounds();
 
-    markerBounds = newMarkerOnMap(potentialAddresses,map,'/grn-pushpin.png', markerBounds)
-    markerBounds = newMarkerOnMap(collectionAddresses, map,'/red-pushpin.png',markerBounds)
+    markerBounds = newMarkerOnMap(potentialAddresses,map,'icons8-marker-40-blue.png', markerBounds)
+    markerBounds = newMarkerOnMap(collectionAddresses, map,'icons8-marker-40-red.png',markerBounds)
 
     map.fitBounds(markerBounds)
 }
@@ -86,6 +86,7 @@ function centralMap(){
 function newMarkerOnMap(addr, currMap, marker, bounds){
     var array = JSON.parse("[" + addr + "]");
     var iconChoice = iconBase + marker;
+    console.log(iconChoice)
     for (var i=0; i<array[0].length;i++){
         var currPos = array[0][i];
         var lat_temp = parseFloat(currPos[0]);

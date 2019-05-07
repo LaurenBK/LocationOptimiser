@@ -1,6 +1,8 @@
 {% extends 'map_app/base.html' %}
 {% block main_content %}
 
+{% if user.is_authenticated %}
+
 <script>
     var address = "{{central.address}}";
     var potentialAddresses = "{{potentialAddresses}}";
@@ -15,21 +17,23 @@
 <table  class="table table-striped">
     <tr>
         <td>
-            <img src="http://maps.google.com/mapfiles/ms/icons/grn-pushpin.png">
+            <img src="../../static/map_app/images/icons8-marker-40-blue.png">
+            <!--<img src="http://maps.google.com/mapfiles/ms/icons/grn-pushpin.png">-->
         </td>
         <td>Potential sites</td>
         <td>
-            <img src="http://maps.google.com/mapfiles/ms/icons/red-pushpin.png">
+            <img src="../../static/map_app/images/icons8-marker-40-red.png">
+            <!--<img src="http://maps.google.com/mapfiles/ms/icons/red-pushpin.png">-->
         </td>
         <td>Collection points</td>
     </tr>
 </table>
 
 <div id="map" style="clear:both; height:400px;"></div>
-<script src="../../static/map_app/loadmap.js">
+<script src="../../static/map_app/js/loadmap.js">
 </script>
 <script async defer
-src="https://maps.googleapis.com/maps/api/js?key={{mykey}}&callback=centralMap">
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDHv2uPoLx9NMFchcq-d6e1pJ1KPNARq10&callback=centralMap">
 </script>
 <br>
 
@@ -52,8 +56,8 @@ src="https://maps.googleapis.com/maps/api/js?key={{mykey}}&callback=centralMap">
 
 <div class=container-fluid">
    <div class="col-sm-12 text-center">
-    <form  action="{% url 'map_app:centralLocation'  %}" method=post">  {% csrf_token %}
-        <input id="index_next" class="btn btn-info btn-lg" type="submit" value="Back to home" >
+    <form  action="{% url 'map_app:upload_page'  %}" method=post">  {% csrf_token %}
+        <input id="index_next" class="btn btn-sample btn-lg" type="submit" value="Back to home" >
     </form>
    </div>
 </div>
@@ -75,7 +79,8 @@ src="https://maps.googleapis.com/maps/api/js?key={{mykey}}&callback=centralMap">
     {% for entry in central %}
         <option value="{{ entry.address }}">{{ entry.address }}</option>
     {% endfor %}
-    <input type="submit" value="Select">
+    <input type="submit">
+    <button class="btn btn-sample">Submit</button>
 </select>
 </form>
 <br>
@@ -119,5 +124,10 @@ src="https://maps.googleapis.com/maps/api/js?key={{mykey}}&callback=centralMap">
     {% endif %}
 
 </div>
+
+
+{% else %}
+  <p>Welcome, new user. Please log in to access site functions.</p>
+{% endif %}
 
 {% endblock %}
