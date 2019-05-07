@@ -78,9 +78,8 @@
 <select name="filter_sites">
     {% for entry in central %}
         <option value="{{ entry.address }}">{{ entry.address }}</option>
-    {% endfor %}
-    <input type="submit">
-    <button class="btn btn-sample">Submit</button>
+    {% endfor %}<br>
+    <input type="submit" class="btn btn-sample">
 </select>
 </form>
 <br>

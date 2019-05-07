@@ -9,8 +9,8 @@ map_app_patterns = [
     re_path(r'home/$', views.upload_page,
             name="upload_page"),  # '^$' means that they shouldn't add anything to url
     #http://127.0.0.1:8000/map_app/
-    re_path(r'broken_addresses/$', views.download_broken_addresses,
-            name='broken_addresses'),
+    # re_path(r'broken_addresses/$', views.download_broken_addresses,
+    #         name='broken_addresses'),
     re_path(r'otherLocations/$', views.otherLocations,
             name="otherLocations"),
     re_path(r'summary/$', views.downloadSummary,

@@ -1,4 +1,4 @@
-from . models import CentralSite,Route,TransportClasses
+from . models import CentralSite, Route, TransportClasses
 from django.template import RequestContext
 from django.http import HttpResponse
 from django.shortcuts import render, render_to_response, redirect
@@ -34,9 +34,11 @@ class UploadFileForm(forms.Form):
 
 
 def delete_data(request):
-    CentralSite.objects.all().delete()
-    Route.objects.all().delete()
-    TransportClasses.objects.all().delete()
+    username = str(request.user)
+
+    CentralSite.objects.filter(user=username).delete()
+    Route.objects.filter(user=username).delete()
+    TransportClasses.objects.filter(user=username).delete()
     return redirect('/map_app/home')
 
 
@@ -168,7 +170,6 @@ def collections_site_processing(
             try:
                 latlng = geocode_result[0]['geometry']['location']
             except Exception as e:
-                print(geocode_result)
                 print('geocode exception:', e)
                 latlng = geocode_result['geometry']['location']
 
@@ -204,7 +205,8 @@ def collections_site_processing(
                         lat=latlng['lat'],
                         lng=latlng['lng'])
                     query.save()
-        except Exception:
+        except Exception as e:
+            print(e)
             broken_routes.append(row['Address'])
 
     return {'broken_routes': broken_routes}
@@ -220,8 +222,19 @@ def transport_types_processing(df: pd.DataFrame, user: str):
                 costPerKm=row['Cost per km'])
             query.save()
         except Exception as e:
-            print(2, e)
+            print('2a', e)
 
+
+# def broken_address_processing(addresses: list, user: str):
+#     for i in range(len(addresses)):
+#         try:
+#             query = BrokenAddresses.objects.create(
+#                 address=addresses[i],
+#                 user=user)
+#             query.save()
+#         except Exception as e:
+#             print('2b', e)
+#
 
 @ensure_csrf_cookie
 def upload_page(request):
@@ -287,6 +300,7 @@ def upload_page(request):
     if feedback is not None:
         if 'broken_addresses' in feedback.keys():
             context['broken_addresses'] = feedback['broken_addresses']
+            # broken_address_processing(feedback['broken_addresses'], username)
         if 'broken_routes' in feedback.keys():
             context['broken_routes'] = feedback['broken_routes']
 
@@ -328,10 +342,12 @@ def otherLocations(request):
              for i in range(len(central))]
 
     filtered = False
+    selected_routes = []
     if request.method == 'POST':
         filtered = True
-        selected_routes = routes.filter(
-            user=username, site=request.POST.get('filter_sites'))
+        site_to_filter = request.POST.get('filter_sites')
+        selected_routes = Route.objects.filter(
+            user=username, site=site_to_filter)
 
     num_routes = 0
     if len(central) > 0:
@@ -349,12 +365,14 @@ def otherLocations(request):
                   RequestContext(request))
 
 
-def download_broken_addresses(request, broken_addresses):
-    print(request.cookies)
+def download_broken_addresses(request):
+    username = str(request.user)
+
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="broken_addresses.csv"'
 
     writer = csv.writer(response)
+    broken_addresses = BrokenAddresses.objects.filter(user=username)
 
     writer.writerow(['Address'])
     print(broken_addresses)

@@ -5,3 +5,5 @@ bokeh
 numpy
 pandas
 django_excel
+mysqlclient
+xlrd==1.0.0
