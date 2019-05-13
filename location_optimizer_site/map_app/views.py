@@ -1,4 +1,4 @@
-from . models import CentralSite, Route, TransportClasses
+from . models import PrimarySite, SecondarySite, TransportClasses
 from django.template import RequestContext
 from django.http import HttpResponse
 from django.shortcuts import render, render_to_response, redirect
@@ -12,10 +12,14 @@ from django.http import HttpResponseRedirect
 from .forms import UserRegistrationForm
 
 import pandas as pd
+import xlrd
 import numpy as np
 import string
 import googlemaps
 import csv
+import logging
+import google
+from collections import OrderedDict
 
 import django_excel as excel
 from bokeh.palettes import Set1
@@ -25,8 +29,10 @@ from bokeh.plotting import figure, output_file, show
 from bokeh.models import Legend
 from bokeh.embed import components
 
+
 mykey = open("map_app/static/map_app/js/config.js", "r").readlines()[1]
 mykey = mykey.split('\'')
+gmaps = googlemaps.Client(key=mykey[1])
 
 
 class UploadFileForm(forms.Form):
@@ -36,30 +42,30 @@ class UploadFileForm(forms.Form):
 def delete_data(request):
     username = str(request.user)
 
-    CentralSite.objects.filter(user=username).delete()
-    Route.objects.filter(user=username).delete()
+    PrimarySite.objects.filter(user=username).delete()
+    SecondarySite.objects.filter(user=username).delete()
     TransportClasses.objects.filter(user=username).delete()
     return redirect('/map_app/home')
 
 
-def login_view(request):
-    username = request.POST.get('username', '')
-    password = request.POST.get('password', '')
-    user = auth.authenticate(username=username, password=password)
-    if user is not None and user.is_active:
-        # Correct password, and the user is marked "active"
-        auth_views.login(request, user)
-        # Redirect to a success page.
-        return render(request, 'map_app/home.html')
-    else:
-        # Show an error page
-        return render(request, 'registration/login.html')
-
-
-def logout_view(request):
-    auth_views.logout(request)
-    # Redirect to a success page.
-    return render(request, 'map_app/logout.html')
+# def login_view(request):
+#     username = request.POST.get('username', '')
+#     password = request.POST.get('password', '')
+#     user = auth.authenticate(username=username, password=password)
+#     if user is not None and user.is_active:
+#         # Correct password, and the user is marked "active"
+#         auth_views.login(request, user)
+#         # Redirect to a success page.
+#         return render(request, 'map_app/home.html')
+#     else:
+#         # Show an error page
+#         return render(request, 'registration/login.html')
+#
+#
+# def logout_view(request):
+#     auth_views.logout(request)
+#     # Redirect to a success page.
+#     return render(request, 'map_app/logout.html')
 
 
 # def register(request):
@@ -92,12 +98,28 @@ def xlsx_reader(excel):
     :param file: input file
     :return:
     """
+    df = None
+    warning_message = None
     try:
-        df = pd.read_excel(excel, 'Sheet1', encoding='utf8')
-    except Exception as e:
-        print(7, e)
-        df = pd.read_excel(excel, encoding='utf8')
-    return df
+        sheets = pd.read_excel(excel, sheet_name=None, encoding='utf8')
+        for name, sheet in sheets.items():
+            sheet.columns = [c.lower() for c in sheet.columns]
+            if 'address' in sheet.columns:
+                df = sheet
+                if 'rent' not in df.columns:
+                    df['rent'] = 0
+            elif 'collection vehicle' in sheet.columns:
+                df = sheet
+        if df is None:  # this would mean that address was not present
+            warning_message = 'No address was present in the upload'
+            logging.error(warning_message)
+        else:
+            logging.info(
+                f'Excel uploaded with format {name, sheet.columns in sheets.items()}')
+    except xlrd.biffh.XLRDError:
+        warning_message = 'Please upload utf8 encoded excel spreadsheet'
+        logging.error(warning_message)
+    return df, warning_message
 
 
 def country_checker(gmaps, latlng, country):
@@ -108,121 +130,150 @@ def country_checker(gmaps, latlng, country):
         return False
 
 
-def process_address(address_string, country):
+def clean_address(address_string, country):
+    address_string = address_string.lower()
     translator = str.maketrans(string.punctuation,
                                ' ' * len(string.punctuation))
     address_string = address_string.translate(translator)
-    address = address_string + ' South Africa'
+    address = address_string + ' ' + country
     return address
 
 
-def potential_site_processing(
+def process_address(address, country):
+
+    address = clean_address(address_string=address, country=country)
+    geocode_result = gmaps.geocode(address)
+
+    if len(geocode_result) > 0:
+        geocode_result = geocode_result[0]
+
+        latlng = geocode_result['geometry']['location']
+
+        in_country_check = country_checker(gmaps, latlng, country)
+
+        if in_country_check:
+            return latlng
+    else:
+        return []
+
+
+def primary_site_processing(
         df: pd.DataFrame, user: str,  country: str='South Africa'):
 
+    feedback = {}
     broken_addresses = []
 
+    n = 0
     for i in range(len(df)):
         row = df.iloc[i, :]
-        try:
-            address = process_address(row['Address'], country)
-            gmaps = googlemaps.Client(key=mykey[1])
-            geocode_result = gmaps.geocode(address)
-            try:
-                latlng = geocode_result[0]['geometry']['location']
-            except:
-                latlng = geocode_result['geometry']['location']
 
-            in_country_check = country_checker(gmaps, latlng, country)
+        latlng = process_address(address=row['address'], country=country)
 
-            if not CentralSite.objects.filter(
-                    address=row['Address'], user=user).exists() \
-                    and in_country_check:
-                query = CentralSite.objects.create(
-                    user=user,
-                    address=row['Address'],
-                    pub_date=timezone.now(),
-                    lat=latlng['lat'],
-                    lng=latlng['lng'],
-                    costPerMonth=0)
-                query.save()
-            addresses = [latlng['lat'], latlng['lng']]
-        except Exception as e:
-            print('Address broken. Error:', e, 'row', row)
-            broken_addresses.append(row['Address'])
+        existence_check = PrimarySite.objects.filter(
+            address=row['address'], user=user).exists()
 
-    return {'broken_addresses': broken_addresses}
+        if len(latlng) == 0:
+            broken_addresses.append(row['address'])
+        elif not existence_check and latlng is not None:
+            query = PrimarySite.objects.create(
+                user=user,
+                address=row['address'],
+                pub_date=timezone.now(),
+                lat=latlng['lat'],
+                lng=latlng['lng'],
+                costPerMonth=0)
+            query.save()
+            n += 1
+
+    if len(broken_addresses) > 0:
+        feedback['broken_primary'] = list(set(broken_addresses))
+
+    if n > 0:
+        feedback['num_primary'] = n
+
+    return feedback
 
 
-def collections_site_processing(
+def secondary_site_processing(
         df: pd.DataFrame, user: str, country: str='South Africa'):
 
-    broken_routes = []
+    feedback = {}
+    broken_secondary_sites = []
 
-    central = CentralSite.objects.order_by('pub_date')
+    primary = PrimarySite.objects.filter(user=user).order_by('pub_date')
 
+    n = 0
     for i in range(len(df)):
         row = df.iloc[i, :]
-        # print(row['Address'])
-        try:
-            address = row['Address'] + ' South Africa'
-            gmaps = googlemaps.Client(key=mykey[1])
-            geocode_result = gmaps.geocode(address)
-            try:
-                latlng = geocode_result[0]['geometry']['location']
-            except Exception as e:
-                print('geocode exception:', e)
-                latlng = geocode_result['geometry']['location']
 
-            in_country_check = country_checker(gmaps, latlng, country)
+        latlng = process_address(address=row['address'], country=country)
 
-            # Calculate driving distance and add to database
-            for c in central:
-                distance_duration = gmaps.distance_matrix(
-                    origins=c.address + ', South Africa',
-                    destinations=row[0] + ', South Africa',
-                    mode='driving')
+        # Calculate driving distance and add to database
 
-                if not Route.objects.filter(
-                        site=c, address=row['Address'], user=user).exists() \
-                        and in_country_check:
+        for c in primary:
+            distance_duration = gmaps.distance_matrix(
+                origins=c.address + ', South Africa',
+                destinations=row['address'] + ', South Africa',
+                mode='driving')
 
-                    query = Route.objects.create(
-                        user=user,
-                        site=c, address=row['Address'],
-                        type=row['Collection vehicle'],
-                        distance_km=round(
-                            distance_duration['rows'][
-                                0]['elements'][0][
-                                'distance'][
-                                'value'] / 1000.0, 2),
-                        duration_minutes=round(
-                            distance_duration['rows'][
-                                0]['elements'][0][
-                                'duration'][
-                                'value'] / 60.0, 2),
-                        deliveriesPerMonth=row[
-                            'Collections per month'],
-                        lat=latlng['lat'],
-                        lng=latlng['lng'])
-                    query.save()
-        except Exception as e:
-            print(e)
-            broken_routes.append(row['Address'])
+            existence_check = SecondarySite.objects.filter(
+                site=c, address=row['address'], user=user).exists()
 
-    return {'broken_routes': broken_routes}
+            if len(latlng) == 0:
+                broken_secondary_sites.append(row['address'])
+            elif not existence_check and latlng is not None:
+
+                distance_km = round(
+                    distance_duration['rows'][0]['elements'][0][
+                        'distance']['value'] / 1000.0, 2)
+
+                duration = round(
+                    distance_duration['rows'][0]['elements'][0][
+                        'duration']['value'] / 60.0, 2)
+
+                query = SecondarySite.objects.create(
+                    user=user,
+                    site=c, address=row['address'],
+                    type=row['collection vehicle'],
+                    distance_km=distance_km,
+                    duration_minutes=duration,
+                    deliveriesPerMonth=row[
+                        'collections per month'],
+                    lat=latlng['lat'],
+                    lng=latlng['lng'])
+                query.save()
+                n += 1
+
+    if len(broken_secondary_sites) > 0:
+        feedback['broken_secondary'] = broken_secondary_sites
+
+    if n > 0:
+        feedback['num_secondary_sites'] = n
+
+    return feedback
 
 
 def transport_types_processing(df: pd.DataFrame, user: str):
+
+    feedback = {}
+
+    n = 0
     for i in range(len(df)):
         row = df.iloc[i, :]
         try:
             query = TransportClasses.objects.create(
                 user=user,
-                transport=row['Collection vehicle'],
-                costPerKm=row['Cost per km'])
+                transport=row['collection vehicle'],
+                costPerKm=row['cost per km'])
             query.save()
+            n += 1
         except Exception as e:
-            print('2a', e)
+            print(e)
+
+    if n > 0:
+        feedback['num_transport'] = n
+
+    return feedback
 
 
 # def broken_address_processing(addresses: list, user: str):
@@ -239,147 +290,214 @@ def transport_types_processing(df: pd.DataFrame, user: str):
 @ensure_csrf_cookie
 def upload_page(request):
 
-    # delete_data(request)
+    context = {}
 
-    upload_functions = {
-        'potentialSitesFile': potential_site_processing,
-        'collectionFile': collections_site_processing,
-        'transportClassFile': transport_types_processing}
-    file_present = None
+    upload_functions = OrderedDict(
+        primarySitesFile=primary_site_processing,
+        secondaryFile=secondary_site_processing,
+        transportClassFile=transport_types_processing)
+    file_present = []
     username = str(request.user)
-    upload_occurred = False
+    warning_message = None
 
-    if request.method == 'POST'and request.FILES:
-        df = {}
+    if request.method == 'POST' and request.FILES:
+        dfs = {}
         for k in upload_functions.keys():
             try:
                 excel = request.FILES[k]
-                df[k] = xlsx_reader(excel)
-                file_present = k
+                dfs[k], warning_message = xlsx_reader(excel)
+                file_present.append(k)
             except KeyError:
                 pass
     else:
-        df = None
+        dfs = None
 
-    feedback = None
-    if file_present is not None:
-        feedback = upload_functions[file_present](
-            df=df[file_present], user=username)
-        upload_occurred = True
-
-    context = {'upload_occurred': upload_occurred}
-    try:
-        central = CentralSite.objects.filter(
-            user=username).order_by('pub_date')
-        # context['central'] = True
-        context['central_length'] = len(central)
-    except Exception as e:
-        print(4, e)
-        pass
+    feedback = {}
+    for k in range(len(file_present)):
+        file_type = file_present[k]
+        feedback[file_type] = upload_functions[file_type](
+            df=dfs[file_type], user=username)
 
     try:
-        routes = Route.objects.filter(
-            user=username).order_by('site')
-
-        # context['collections'] = True
-        context['collections_length'] = len(
-            list(set([r.address for r in routes])))
+        context['primary_length'] = PrimarySite.objects.filter(
+            user=username).count()
     except Exception as e:
-        print(5, e)
-        pass
+        print(e)
+        logging.debug(f'No primary sites uploaded: {e}')
 
     try:
-        transport = TransportClasses.objects.filter(
-            user=username).order_by('costPerKm')
-        # context['transport'] = True
-        context['transport_length'] = len(transport)
+        context['secondary_length'] = SecondarySite.objects.filter(
+            user=username).count()
     except Exception as e:
-        print(6, e)
+        print(e)
+        logging.debug(f'No secondary sites uploaded {e}')
+
+    try:
+        context['transport_length'] = TransportClasses.objects.filter(
+            user=username).count()
+    except Exception as e:
+        logging.debug(f'No transport types uploaded {e}')
         pass
 
-    if feedback is not None:
-        if 'broken_addresses' in feedback.keys():
-            context['broken_addresses'] = feedback['broken_addresses']
-            # broken_address_processing(feedback['broken_addresses'], username)
-        if 'broken_routes' in feedback.keys():
-            context['broken_routes'] = feedback['broken_routes']
+    for key, data in feedback.items():
+        # this will add broken sites, secondary sites and transport
+        context.update(data)
+
+    if warning_message is not None:
+        context['warning_message'] = warning_message
+
+    print(context)
+
+    if context['primary_length'] == 0 or \
+        context['secondary_length'] == 0 or \
+        context['transport_length'] == 0:
+            context['disable'] = True
 
     return render(request, 'map_app/home.html', context,
                   RequestContext(request))
 
 
 @ensure_csrf_cookie
-def otherLocations(request):
+def comparePrimary(request):
 
     username = str(request.user)
-    central = CentralSite.objects.filter(
+    primary = PrimarySite.objects.filter(
             user=username).order_by('pub_date')
     transport = TransportClasses.objects.filter(
             user=username).order_by('costPerKm')
     transport = {t.transport: t.costPerKm for t in transport}
-    routes = Route.objects.filter(
+    secondary = SecondarySite.objects.filter(
             user=username).order_by('site')
-    potential_addresses = [[c.lat, c.lng] for c in central]
-    collection_addresses = [[r.lat, r.lng] for r in routes]
-    for r in routes:
-        r.routeCost = round(r.distance_km*transport[r.type], 2)
-        r.routeCostPerMonth = round(r.distance_km *
-                                    transport[r.type] *
-                                    r.deliveriesPerMonth, 2)
-        r.save()
+    primary_addresses = [[p.lat, p.lng] for p in primary]
+    secondary_addresses = [[s.lat, s.lng] for s in secondary]
 
-    for c in central:
+    for r in secondary:
+        if r.SiteCost == 0:
+            r.SiteCost = round(r.distance_km*transport[r.type], 2)
+            r.SiteCostPerMonth = round(r.distance_km *
+                                        transport[r.type] *
+                                        r.deliveriesPerMonth, 2)
+            r.save()
+
+    for p in primary:
         y_temp = []
-        for rt in routes:
-            if rt.site == c:
-                y_temp.append(rt.routeCostPerMonth)
-        c.costPerMonth = sum(y_temp)
-        c.save()
+        for rt in secondary:
+            if rt.site == p:
+                y_temp.append(rt.SiteCostPerMonth)
+        p.costPerMonth = sum(y_temp)
+        p.save()
 
-    sites = [(central[i].address,
+    sites = [(primary[i].address,
              '{:,.2f}'.format(
-                 central[i].costPerMonth, 2).replace(',', ' '))
-             for i in range(len(central))]
+                 primary[i].costPerMonth, 2).replace(',', ' '))
+             for i in range(len(primary))]
 
     filtered = False
-    selected_routes = []
+    selected_secondary = []
     if request.method == 'POST':
         filtered = True
         site_to_filter = request.POST.get('filter_sites')
-        selected_routes = Route.objects.filter(
-            user=username, site=site_to_filter)
+        site_id = primary.filter(address=site_to_filter).values()[0]['id']
+        selected_secondary = SecondarySite.objects.filter(
+            user=username, site=site_id)
 
-    num_routes = 0
-    if len(central) > 0:
-        num_routes = len(routes) / len(central)
+    num_secondary = 0
+    if len(primary) > 0:
+        num_secondary = len(secondary) / len(primary)
+    print(num_secondary)
 
-    context = {'central': central,
-               'num_routes': num_routes,
+    context = {'primary': primary,
+               'num_secondary': num_secondary,
                'sites': sites,
-               'potentialAddresses': potential_addresses,
-               'collectionAddresses': collection_addresses}
+               'primaryAddresses': primary_addresses,
+               'secondaryAddresses': secondary_addresses}
     if filtered:
-        context['selected_routes'] = selected_routes
+        context['selected_secondary'] = selected_secondary
 
-    return render(request, 'map_app/otherLocations.html', context,
+    return render(request, 'map_app/comparePrimary.html', context,
                   RequestContext(request))
 
 
-def download_broken_addresses(request):
+@ensure_csrf_cookie
+def closestSiteCosts(request):
+
     username = str(request.user)
+    primary = PrimarySite.objects.filter(
+            user=username).order_by('pub_date')
+    transport = TransportClasses.objects.filter(
+            user=username).order_by('costPerKm')
+    transport = {t.transport: t.costPerKm for t in transport}
+    secondary = SecondarySite.objects.filter(
+            user=username).order_by('site')
+    primary_addresses = [[p.lat, p.lng] for p in primary]
+    secondary_addresses = [[s.lat, s.lng] for s in secondary]
 
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="broken_addresses.csv"'
+    for r in secondary:
+        if r.SiteCost == 0:
+            r.SiteCost = round(r.distance_km*transport[r.type], 2)
+            r.SiteCostPerMonth = round(r.distance_km *
+                                        transport[r.type] *
+                                        r.deliveriesPerMonth, 2)
+            r.save()
 
-    writer = csv.writer(response)
-    broken_addresses = BrokenAddresses.objects.filter(user=username)
+    primary_df = pd.DataFrame.from_records(primary.values()).rename(
+        columns={'id': 'site_id', 'address': 'p_address'})
+    sites_to_toggle = primary_df.p_address
 
-    writer.writerow(['Address'])
-    print(broken_addresses)
-    for address in broken_addresses:
-        writer.writerow([address])
+    secondary_df = pd.DataFrame.from_records(secondary.values())
 
-    return response
+    df = pd.merge(primary_df[['site_id', 'p_address']], secondary_df,
+                  on='site_id', how='inner')
+
+    toggled = False
+    if request.method == 'POST':
+        toggled = True
+        sites_to_toggle = request.POST.getlist('toggle_sites')
+
+    df_filtered = df[df['p_address'].isin(sites_to_toggle)]
+
+    print(df.shape, sites_to_toggle,
+          df_filtered)
+
+    df_filtered = df_filtered.loc[df_filtered.groupby(
+        "address")["SiteCostPerMonth"].idxmin()]
+    site_costs = df_filtered.groupby('p_address')[
+        "SiteCostPerMonth"].sum().reset_index()
+    site_costs['SiteCostPerMonth'] = site_costs['SiteCostPerMonth'].apply(
+        lambda x: '{:,.2f}'.format(x).replace(',', ' '))
+
+    sites = site_costs.values.tolist()
+
+    num_secondary = 0
+    if len(primary) > 0:
+        num_secondary = len(secondary) / len(primary)
+
+    context = {
+        'primary': primary,
+               # 'num_secondary': num_secondary,
+               'sites': sites,
+               'primaryAddresses': primary_addresses,
+               'secondaryAddresses': secondary_addresses}
+
+    return render(request, 'map_app/closestSiteCosts.html', context,
+                  RequestContext(request))
+
+
+# def download_broken_addresses(request):
+#     username = str(request.user)
+#
+#     response = HttpResponse(content_type='text/csv')
+#     response['Content-Disposition'] = 'attachment; filename="broken_addresses.csv"'
+#
+#     writer = csv.writer(response)
+#     broken_addresses = BrokenAddresses.objects.filter(user=username)
+#
+#     writer.writerow(['Address'])
+#     print(broken_addresses)
+#     for address in broken_addresses:
+#         writer.writerow([address])
+#
+#     return response
 
 
 def downloadSummary(request):
@@ -390,7 +508,7 @@ def downloadSummary(request):
     response['Content-Disposition'] = 'attachment; filename="summary.csv"'
 
     writer = csv.writer(response)
-    central = CentralSite.objects.filter(
+    central = PrimarySite.objects.filter(
             user=username).order_by('pub_date')
 
     writer.writerow(['Address', 'Transport Cost Per Month'])
@@ -407,20 +525,20 @@ def downloadDetail(request):
     response['Content-Disposition'] = 'attachment; filename="detail.csv"'
 
     writer = csv.writer(response)
-    routes = Route.objects.filter(
+    secondary = SecondarySite.objects.filter(
             user=username).order_by('site')
 
     writer.writerow(['Potential Site', 'Collection Site',
                      'Duration(min)', 'Distance(km)',
                      'Deliveries per month',
-                     'Transport type', 'Route Cost(R)',
-                     'Route Cost Per Month(R)'])
+                     'Transport type', 'Site Cost(R)',
+                     'Site Cost Per Month(R)'])
 
-    for r in routes:
-        writer.writerow([str(r.site), str(r.address),
-                         str(r.duration_minutes),str(r.distance_km),
-                         str(r.deliveriesPerMonth), str(r.type),
-                         str(r.routeCost), str(r.routeCostPerMonth),])
+    for s in secondary:
+        writer.writerow([str(s.site), str(s.address),
+                         str(s.duration_minutes), str(s.distance_km),
+                         str(s.deliveriesPerMonth), str(s.type),
+                         str(s.SiteCost), str(s.SiteCostPerMonth)])
 
     return response
 
@@ -434,16 +552,22 @@ def downloadOrderedByDistance(request):
                                       'filename="sitesByDistance.csv"'
 
     writer = csv.writer(response)
-    routes = Route.objects.filter(
-            user=username).order_by('distance_km')
-    unique_routes = list(set([r.address for r in routes]))
-    order = {}
-    for add in unique_routes:
-        temp_routes = routes.filter(address=add)
-        order[add] = [r.site.address for r in temp_routes]
 
-    header_row = ['Collection Point'] + ['Site %d'%x
-        for x in range(len(order))]
+    num_primary = PrimarySite.objects.filter(
+            user=username).count()
+
+    secondary = SecondarySite.objects.filter(
+            user=username).order_by('distance_km')
+
+    order = {}
+    header_row = ['Secondary Site'] + [
+        'Site %d' % x for x in range(1, num_primary + 1)]
+
+    unique_secondary = list(set([r.address for r in secondary]))
+    for add in unique_secondary:
+        temp_secondary = SecondarySite.objects.filter(address=add)
+        order[add] = [r.site.address for r in temp_secondary]
+
     writer.writerow(header_row)
 
     for o in order.keys():
@@ -453,9 +577,9 @@ def downloadOrderedByDistance(request):
     return response
 
 # def summary(request):
-#     central = CentralSite.objects.order_by('pub_date')
-#     routes = Route.objects.order_by('site')
-#     print([r.routeCost for r in routes])
+#     central = PrimarySite.objects.order_by('pub_date')
+#     SecondarySites = SecondarySite.objects.order_by('site')
+#     print([r.SecondarySiteCost for r in SecondarySites])
 #
 #     title = 'Costs per km'
 #
@@ -469,9 +593,9 @@ def downloadOrderedByDistance(request):
 #     y = []
 #     for c in central:
 #         y_temp = []
-#         for rt in routes:
+#         for rt in SecondarySites:
 #             if rt.site == c:
-#                 y_temp.append(rt.routeCostPerMonth)
+#                 y_temp.append(rt.SecondarySiteCostPerMonth)
 #         print('ytemp',y_temp)
 #         y.append(sum(y_temp))
 #     leg = []

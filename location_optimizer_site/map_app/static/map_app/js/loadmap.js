@@ -77,8 +77,8 @@ function centralMap(){
 
     markerBounds = new google.maps.LatLngBounds();
 
-    markerBounds = newMarkerOnMap(potentialAddresses,map,'icons8-marker-40-blue.png', markerBounds)
-    markerBounds = newMarkerOnMap(collectionAddresses, map,'icons8-marker-40-red.png',markerBounds)
+    markerBounds = newMarkerOnMap(primaryAddresses,map,'icons8-marker-40-blue.png', markerBounds)
+    markerBounds = newMarkerOnMap(secondaryAddresses, map,'icons8-marker-40-red.png',markerBounds)
 
     map.fitBounds(markerBounds)
 }

@@ -4,9 +4,9 @@
 {% if user.is_authenticated %}
 
 <script>
-    var address = "{{central.address}}";
-    var potentialAddresses = "{{potentialAddresses}}";
-    var collectionAddresses = "{{collectionAddresses}}";
+    var address = "{{primary.address}}";
+    var potentialAddresses = "{{primaryAddresses}}";
+    var collectionAddresses = "{{secondaryAddresses}}";
     var mykey = config.MY_KEY;
     var secretkey = config.SECRET_KEY;
 </script>
@@ -20,12 +20,12 @@
             <img src="../../static/map_app/images/icons8-marker-40-blue.png">
             <!--<img src="http://maps.google.com/mapfiles/ms/icons/grn-pushpin.png">-->
         </td>
-        <td>Potential sites</td>
+        <td>Primary sites</td>
         <td>
             <img src="../../static/map_app/images/icons8-marker-40-red.png">
             <!--<img src="http://maps.google.com/mapfiles/ms/icons/red-pushpin.png">-->
         </td>
-        <td>Collection points</td>
+        <td>Secondary sites</td>
     </tr>
 </table>
 
@@ -73,23 +73,23 @@
 </div>
 
 <div class="container">
-<h4>Choose potential branch to view in detail</h4>
+<h4>Choose primary branch to view in detail</h4>
 <form method="POST"> {% csrf_token %}
 <select name="filter_sites">
-    {% for entry in central %}
+    {% for entry in primary %}
         <option value="{{ entry.address }}">{{ entry.address }}</option>
     {% endfor %}<br>
     <input type="submit" class="btn btn-sample">
 </select>
 </form>
 <br>
-<h4>Selected Route: {{selected_routes.0.site}} </h4>
+<!--<h4>Selected Route: {{selected_secondary.0.site}} </h4>-->
 <br>
-{%if selected_routes %}
+{%if selected_secondary %}
         <table  class="table table-striped" >
             <thead>
-                <th>Potential Site</th>
-                <th>Collection Site</th>
+                <th>Primary Site</th>
+                <th>Secondary Site</th>
                 <th>Duration (min)</th>
                 <th>Distance (km)</th>
                 <th>Deliveries per month</th>
@@ -97,25 +97,25 @@
                 <th>Route Cost(R)</th>
                 <th>Route Cost Per Month(R)</th>
             </thead>
-        {% for route in selected_routes %}
+        {% for site in selected_secondary %}
             <tr>
-                {% if forloop.counter0|divisibleby:num_routes %}
-                    <td rowspan="{{num_routes}}">{{route.site}}</td>
-                    <td>{{route.address}}</td>
-                    <td>{{route.duration_minutes}}</td>
-                    <td>{{route.distance_km}}</td>
-                    <td>{{route.deliveriesPerMonth}}</td>
-                    <td>{{route.type}}</td>
-                    <td>{{route.routeCost}}</td>
-                    <td>{{route.routeCostPerMonth}}</td>
+                {% if forloop.counter0|divisibleby:num_secondary %}
+                    <td rowspan="{{num_secondary}}">{{site.site}}</td>
+                    <td>{{site.address}}</td>
+                    <td>{{site.duration_minutes}}</td>
+                    <td>{{site.distance_km}}</td>
+                    <td>{{site.deliveriesPerMonth}}</td>
+                    <td>{{site.type}}</td>
+                    <td>{{site.SiteCost}}</td>
+                    <td>{{site.SiteCostPerMonth}}</td>
                 {% else %}
-                    <td>{{route.address}}</td>
-                    <td>{{route.duration_minutes}}</td>
-                    <td>{{route.distance_km}}</td>
-                    <td>{{route.deliveriesPerMonth}}</td>
-                    <td>{{route.type}}</td>
-                    <td>{{route.routeCost}}</td>
-                    <td>{{route.routeCostPerMonth}}</td>
+                    <td>{{site.address}}</td>
+                    <td>{{site.duration_minutes}}</td>
+                    <td>{{site.distance_km}}</td>
+                    <td>{{site.deliveriesPerMonth}}</td>
+                    <td>{{site.type}}</td>
+                    <td>{{site.SiteCost}}</td>
+                    <td>{{site.SiteCostPerMonth}}</td>
                 {% endif %}
             </tr>
         {% endfor %}
