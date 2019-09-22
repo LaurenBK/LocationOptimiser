@@ -1,0 +1,82 @@
+{% extends 'map_app/base.html' %}
+{% block main_content %}
+
+{% if user.is_authenticated %}
+
+<script>
+    var address = "{{primary.address}}";
+    var primaryAddresses = "{{primaryAddresses}}";
+    var secondaryAddresses = "{{secondaryAddresses}}";
+    var mykey = config.MY_KEY;
+</script>
+
+<div class="container">
+  <div class="jumbotron" style="height:100%;">
+
+<table  class="table table-striped">
+    <tr>
+        <td>
+            <img src="../../static/map_app/images/icons8-marker-40-blue.png">
+            <!--<img src="http://maps.google.com/mapfiles/ms/icons/grn-pushpin.png">-->
+        </td>
+        <td>Primary sites</td>
+        <td>
+            <img src="../../static/map_app/images/icons8-marker-40-red.png">
+            <!--<img src="http://maps.google.com/mapfiles/ms/icons/red-pushpin.png">-->
+        </td>
+        <td>Secondary sites</td>
+    </tr>
+</table>
+
+<div id="map" style="clear:both; height:400px;"></div>
+<script src="../../static/map_app/js/loadmap.js">
+</script>
+<script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDHv2uPoLx9NMFchcq-d6e1pJ1KPNARq10&callback=centralMap">
+</script>
+<br>
+
+<h4>Toggle primary sites to recalculate</h4>
+<form method="POST"> {% csrf_token %}
+<select multiple name="toggle_sites">
+    {% for entry in primary %}
+        <option value="{{ entry.address }}">{{ entry.address }}</option>
+    {% endfor %}<br>
+    <input type="submit" class="btn btn-sample">
+</select>
+</form>
+
+{%if sites %}
+    <table  class="table table-striped">
+        <thead>
+            <th>Potential Site</th>
+            <th>Combined Route Cost per Month(R)</th>
+        </thead>
+    {% for site,cost in sites %}
+      <tr>
+          <td>{{site}}</td>
+          <td>{{cost}}</td>
+      </tr>
+    {% endfor %}
+    </table>
+{% endif %}
+
+      <p style="align:right"> <b>Total Cost</b>: {{total_cost}}</p>
+  </div>
+</div>
+
+<div class=container-fluid">
+   <div class="col-sm-12 text-center">
+    <form  action="{% url 'map_app:upload_page'  %}" method=post">  {% csrf_token %}
+        <input id="index_next" class="btn btn-sample btn-lg" type="submit" value="Back to home" >
+    </form>
+   </div>
+</div>
+
+
+
+{% else %}
+  <p>Welcome, new user. Please log in to access site functions.</p>
+{% endif %}
+
+{% endblock %}

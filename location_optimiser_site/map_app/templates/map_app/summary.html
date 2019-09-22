@@ -1,0 +1,37 @@
+{% extends 'map_app/base.html' %}
+{% block main_content %}
+
+<script>
+    var mykey = config.MY_KEY;
+    var secretkey = config.SECRET_KEY;
+</script>
+
+<div class="container">
+  <div class="jumbotron" style="height:20%;align-items: center;">
+<h2>Site Results</h2>
+
+{{ div | safe }}
+
+{{ script | safe }}
+
+<!--{% for site,val in sites %}-->
+    <!--<p>{{site}},{{val}}</p>-->
+<!--{% endfor %}-->
+
+{%if sites %}
+        <table  class="table table-striped">
+            <thead>
+                <th>Primary Site</th>
+                <th>Rent</th>
+                <th>Combined Route Cost per Month(R)</th>
+            </thead>
+        {% for site in sites %}
+          <tr>
+
+          </tr>
+        {% endfor %}
+        </table>
+    {% endif %}
+</div>
+</div>
+{% endblock %}

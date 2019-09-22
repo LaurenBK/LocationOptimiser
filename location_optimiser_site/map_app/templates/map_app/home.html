@@ -1,0 +1,178 @@
+{% extends 'map_app/base.html' %}
+
+{% block main_content %}
+
+<div class="container">
+  <div class="jumbotron" style="height:100%;">
+
+{% if user.is_authenticated %}
+  <p>Welcome, {{ user.username }}. Thanks for logging in. <br><br>
+      Current data contents:
+  </p>
+      <table>
+          <thead>
+            <th>Data source</th>
+            <th>Data count</th>
+          </thead>
+          <tr><td>Sites</td><td>{{primary_length}}</td></tr>
+          <tr><td>Collection points</td><td>{{secondary_length}}</td></tr>
+          <tr><td>Transport types</td><td>{{transport_length}}</td></tr>
+
+      </table>
+            <div class=container-fluid">
+   <div class="col-sm-12 text-right">
+        <a href="delete_user_data">Delete existing data</a>
+   </div>
+</div>
+        <br>
+      <p>Please upload data into the following categories (only 1 upload
+          will work at a time). </p>
+
+      <script>
+    var mykey = config.MY_KEY;
+
+    function pr() {
+            alert(document.getElementById('address').value)
+            document.getElementById("result").innerHTML = document.getElementById('address').value
+    }
+
+    var primaryAddresses = "{{primaryAddresses}}";
+
+</script>
+
+
+<hr><h2> Enter details for the primary site</h2><hr>
+
+<p>Import excel file with the headings: <br>
+    <b>Address, Rent</b></p>
+
+<form method="post" id="csv1" enctype="multipart/form-data">{% csrf_token %}
+
+    <input type="file" name="primaryFile" />
+    <button class="btn btn-sample">Upload</button>
+
+</form>
+<br>
+{%  if primary_length > 0 and num_primary %}
+      {% if broken_primary %}
+        <p>The following addresses could not be processed:</p>
+        <table  class="table table-striped">
+        <thead>
+            <th>Address</th>
+        </thead>
+        {% for site in broken_primary %}
+          <tr>
+              <td>{{site}}</td>
+          </tr>
+            {% endfor %}
+        </table>
+      <!--<a href ="map_app:broken_addresses"}>-->
+          <!--Download broken addresses </a><br>-->
+     {% endif %}
+      <p>{{num_primary}} primary addresses were uploaded.</p>
+
+{% endif %}
+            {% if warning_message_primaryFile %}
+      <p style="color:red">{{warning_message_primaryFile}}</p>
+      {% endif %}
+<br>
+
+<hr><h2> Enter details for the secondary locations</h2><hr>
+<p>Import excel file with the headings: <br>
+    <b>Address,Collection vehicle,Collections per Month</b><br>
+    (This may take a few seconds to process)</p>
+
+<form  method="post" id="csv2" enctype="multipart/form-data">{% csrf_token %}
+    <!--#from https://gist.github.com/imkevinxu/3365661-->
+
+    <input type="file" name="secondaryFile" />
+    <button class="btn btn-sample">Upload</button>
+
+</form>
+<br>
+{% if secondary_length > 0 and num_secondary %}
+      {% if broken_secondary %}
+        <p>The following addresses could not be processed:</p>
+        <table  class="table table-striped">
+        <thead>
+            <th>Address</th>
+        </thead>
+        {% for site in broken_secondary %}
+          <tr>
+              <td>{{site}}</td>
+          </tr>
+        {% endfor %}
+        </table>
+      <!--<a href ="map_app:broken_SecondarySites"}>Download broken sites</a><br>-->
+      {% endif %}
+      <p>{{num_secondary}} secondary addresses were uploaded.</p>
+{% endif %}
+      {% if warning_message_secondaryFile %}
+      <p style="color:red">{{warning_message_secondaryFile}}</p>
+      {% endif %}
+<br>
+
+<hr><h2> Enter details for the transport classes</h2><hr>
+<p>Import excel file with the headings: <br>
+    <b>Collection vehicle, Cost per km</b></p>
+
+<form method="post" id="csv3" enctype="multipart/form-data">{% csrf_token %}
+    <input type="file" name="transportClassFile" />
+    <button class="btn btn-sample">Upload</button>
+</form>
+<br>
+{%  if transport_length > 0 and num_transport %}
+    <p>{{num_transport}} transport types were uploaded.</p>
+{% endif %}
+      {% if warning_message_transportClassFile %}
+      <p style="color:red">{{warning_message_transportClassFile}}</p>
+      {% endif %}
+
+      </div>
+    {% if disable %}
+    <p>Please upload data in all categories before continuing...</p>
+    {% endif %}
+</div>
+
+{% if disable %}
+<div class=container-fluid">
+   <div class="col-sm-12 text-center" style="margin: 5px">
+    <form  action="{% url 'map_app:comparePrimary'  %}" method=post">  {% csrf_token %}
+        <input id="index_compare_primary" class="btn btn-sample btn-lg"
+               type="submit" value="Compare primary sites" disabled>
+    </form>
+   </div>
+
+    <div class="col-sm-12 text-center" style="margin: 5px">
+    <form  action="{% url 'map_app:closestSiteCosts'  %}" method=post">  {% csrf_token %}
+        <input id="index_closest_sites" class="btn btn-sample btn-lg"
+               type="submit" value="Closest site costs" disabled>
+    </form>
+   </div>
+</div>
+{% else %}
+<div class=container-fluid">
+   <div class="col-sm-12 text-center" style="margin: 5px">
+    <form  action="{% url 'map_app:comparePrimary'  %}" method=post">  {% csrf_token %}
+        <input id="index_compare_primary" class="btn btn-sample btn-lg"
+               type="submit" value="Compare primary sites" >
+    </form>
+   </div>
+
+    <div class="col-sm-12 text-center" style="margin: 5px">
+    <form  action="{% url 'map_app:closestSiteCosts'  %}" method=post">  {% csrf_token %}
+        <input id="index_closest_sites" class="btn btn-sample btn-lg"
+               type="submit" value="Closest site costs" >
+    </form>
+   </div>
+</div>
+{% endif %}
+
+
+{% else %}
+<p>Welcome, new user. Please log in.</p>
+{% endif %}
+
+
+
+{% endblock %}
