@@ -170,7 +170,27 @@
 
 
 {% else %}
-<p>Welcome, new user. Please log in.</p>
+<p>Welcome, new user. Please log in.</p><br>
+
+<p>If you want to preview the functionality, see the two examples below with
+    sample data</p>
+
+<div class=container-fluid">
+   <div class="col-sm-12 text-center" style="margin: 5px">
+    <form  action="{% url 'map_app:comparePrimary'  %}" method=post">  {% csrf_token %}
+        <input id="index_compare_primary" class="btn btn-sample btn-lg"
+               type="submit" value="Compare primary sites" >
+    </form>
+   </div>
+
+    <div class="col-sm-12 text-center" style="margin: 5px">
+    <form  action="{% url 'map_app:closestSiteCosts'  %}" method=post">  {% csrf_token %}
+        <input id="index_closest_sites" class="btn btn-sample btn-lg"
+               type="submit" value="Closest site costs" >
+    </form>
+   </div>
+</div>
+
 {% endif %}
 
 

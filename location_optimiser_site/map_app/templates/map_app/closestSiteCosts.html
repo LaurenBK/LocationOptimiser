@@ -1,7 +1,6 @@
 {% extends 'map_app/base.html' %}
 {% block main_content %}
 
-{% if user.is_authenticated %}
 
 <script>
     var address = "{{primary.address}}";
@@ -32,7 +31,7 @@
 <script src="../../static/map_app/js/loadmap.js">
 </script>
 <script async defer
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDHv2uPoLx9NMFchcq-d6e1pJ1KPNARq10&callback=centralMap">
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAe8wolM_wIKF8HTCXCCHRTre7plZKuTmo&callback=centralMap">
 </script>
 <br>
 
@@ -74,9 +73,5 @@
 </div>
 
 
-
-{% else %}
-  <p>Welcome, new user. Please log in to access site functions.</p>
-{% endif %}
 
 {% endblock %}

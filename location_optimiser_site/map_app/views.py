@@ -273,6 +273,7 @@ def upload_page(request):
         feedback[file_type] = upload_functions[file_type](
             df=dfs[file_type], user=username)
 
+    context['primary_length'] = 0
     try:
         context['primary_length'] = PrimarySite.objects.filter(
             user=username).count()
@@ -280,6 +281,7 @@ def upload_page(request):
         print(e)
         logging.debug(f'No primary sites uploaded: {e}')
 
+    context['secondary_length'] = 0
     try:
         context['secondary_length'] = SecondarySite.objects.filter(
             user=username).count()
@@ -287,6 +289,7 @@ def upload_page(request):
         print(e)
         logging.debug(f'No secondary sites uploaded {e}')
 
+    context['transport_length'] = 0
     try:
         context['transport_length'] = TransportClasses.objects.filter(
             user=username).count()
@@ -315,7 +318,11 @@ def upload_page(request):
 @ensure_csrf_cookie
 def comparePrimary(request):
 
-    username = str(request.user)
+    if request.user.is_authenticated:
+        username = str(request.user)
+    else:
+        username = 'guest'
+
     primary = PrimarySite.objects.filter(
             user=username).order_by('pub_date')
     transport = TransportClasses.objects.filter(
@@ -376,7 +383,11 @@ def comparePrimary(request):
 @ensure_csrf_cookie
 def closestSiteCosts(request):
 
-    username = str(request.user)
+    if request.user.is_authenticated:
+        username = str(request.user)
+    else:
+        username = 'guest'
+
     primary = PrimarySite.objects.filter(
             user=username).order_by('pub_date')
     transport = TransportClasses.objects.filter(
